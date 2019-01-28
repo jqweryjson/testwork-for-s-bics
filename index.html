@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet">
+  <title>Document</title>
+</head>
+<body>
+  <style>
+		* {
+		  box-sizing: border-box;
+		  font-family: 'Roboto', sans-serif;
+		}
+
+		body, html {
+		  position: relative;
+		  height: 100%;
+		}
+
+		#app {
+		  position: relative;
+		  padding-left: 20px;
+		}
+		#app .item {
+		  margin-bottom: 20px;
+		}
+		#app div {
+		  user-select: none;
+		  margin-left: 20px;
+		}
+		#app div > p {
+		  display: inline-block;
+		  margin: 0;
+		  padding: 0;
+		  cursor: pointer;
+		  position: absolute;
+		  top: 0;
+		  left: -20px;
+		}
+		#app div > span {
+		  cursor: pointer;
+		  font-size: 15px;
+		  color: #grey;
+		  margin-right: 5px;
+		  background-color: #fff;
+		  display: inline-block;
+		}
+		#app div > span#addSub:after {
+		  content: 'add';
+		  background-color: #47cf73;
+		  padding: 5px;
+		  border-radius: 3px;
+		}
+		#app div > span#deleteSub:after {
+		  content: 'remove';
+		  background-color: #ff3c41;
+		  padding: 5px;
+		  border-radius: 3px;
+		}
+		#app button {
+		  display: inline-block;
+		  margin-right: 10px;
+		  border: none;
+		  background-color: #c5c8d4;
+		  padding: 5px 10px;
+		  font-size: 12px;
+		}
+		#app input {
+		  display: inline-block;
+		  border: none;
+		  background: url(http://www.icon100.com/up/3551/512/6-Pencil-Pen.png) 0 0 no-repeat;
+		  display: inline-block;
+		  background-size: 15px;
+		  background-position: right;
+		  padding: 5px 20px 5px 0;
+		  width: 200px;
+		  margin-right: 20px;
+		}
+		#app input:focus {
+		  outline: none;
+		  border-bottom: 1px solid grey;
+		}
+		  
+  </style>
+  <div id="app"></div>
+  
+  <script>
+		 var initialNode = {
+		  id: "",
+		  parentId: "app",
+		  value: "какойто-текст",
+		  type: "input"
+		};
+		var initialJsonSchema = [
+		  {
+			  id: "1",
+			  value: "какой-то текст",
+			  type: "input",
+			  data: [
+				{
+				  id: "1_0",
+				  value: "какой-то текст",
+				  type: "input",
+				},
+				{
+				  id: "1_1",
+				  value: "какой-то текст",
+				  type: "input",
+				},
+			  ],
+			},
+		];
+		 
+		var app = {
+		  defaultRootNodeLink: "app",
+		  _rootNodeLink: "app",
+		  init: function() {
+			app.removeAllEl();
+			app.rootNode.appendChild($.createBtn("Добавить", app.addRootNode));
+			app.rootNode.appendChild($.createBtn("Удалить", app.deleteRootNode));
+			if(localStorage.getItem('initialJsonSchema')){
+			  app.render(JSON.parse(localStorage.getItem('initialJsonSchema')));
+			  initialJsonSchema = JSON.parse(localStorage.getItem('initialJsonSchema'));
+			} else {
+			  app.render('initialJsonSchema');
+			}
+			
+		  },
+		  get rootNode() {
+			return $.getById(this._rootNodeLink);
+		  },
+		  set rootNode(value) {
+			this._rootNodeLink = value;
+		  },
+		  saveState: function(){
+			 localStorage.setItem('initialJsonSchema', JSON.stringify(initialJsonSchema));
+		  },
+		  generateHash: function(){
+			return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+		  },
+		  addRootNode: function(ctx) {
+			app.generateNode(function(newNode) {
+			  initialJsonSchema.push(newNode);
+				app.saveState();
+				app.init();
+			});
+		  },
+		  generateNode: function(calback) {
+			var clone = JSON.parse(JSON.stringify(initialNode));
+			clone['id'] = app.generateHash();
+			calback ? calback(clone) : 'undefined';
+		  },
+		  editInput: function(ctx) {
+			ctx.stopPropagation();
+		  },
+		  toggleSubNode: function(ctx) {
+			ctx.stopPropagation();    
+			var collection = ctx.currentTarget.parentNode.querySelectorAll('div');
+			collection.forEach(function(elem){
+			  elem.style.transform = "translateY(-110%)";
+			});
+		  },
+		  changeInput: function(e) {
+			console.log(e.currentTarget.parentNode);
+			app.findNodeById(initialJsonSchema, e.currentTarget.parentNode.id, function(elem){
+			  elem.value = e.currentTarget.value;
+			  app.saveState();
+			})
+
+		  },
+		  addSubNode: function(e) {
+			e.stopPropagation();
+			app.findNodeById(initialJsonSchema, e.currentTarget.parentNode.id, function(elem){
+				if(elem.data){
+				  app.generateNode(function(clone){
+					elem.data.push( clone );            
+				  })            
+				} else {
+				  elem.data = [];
+				  app.generateNode(function(clone){
+					elem.data.push( clone );
+				  })           
+				};
+				app.saveState();
+				app.init();
+			});
+		  },
+		  deleteSubNode: function(e){
+			e.stopPropagation();
+			var current = e.currentTarget.id;
+			app.findNodeById(initialJsonSchema, e.currentTarget.parentNode.id, function(elem , arr){
+			  console.log(elem, arr);
+			  var pos = arr.indexOf(elem)
+			  arr.splice(pos, 1);
+			  app.saveState();
+			  app.init();
+			});
+		  },
+		  findNodeById: function(data, id, callback){
+
+			data.forEach(function(elem, indx, arr) {
+			  if(id === elem.id){
+				callback(elem, arr);
+			  } else if (elem.data){
+				app.findNodeById(elem.data, id, callback);
+			  }
+			});
+		  },
+		  deleteRootNode: function() {
+			app.removeAllEl();
+			initialJsonSchema.splice(initialJsonSchema.length - 1, 1);
+				app.saveState();
+				app.init();
+		  },
+		  removeAllEl: function() {
+			app.rootNode.remove();
+			var initialAppDiv = $.createEl("div");
+			initialAppDiv.id = "app";
+			document.getElementsByTagName("body")[0].appendChild(initialAppDiv);
+		  },
+		  render: function(initialJsonSchema, rootNode) {
+			initialJsonSchema.forEach(function(element, indx, arr) {   
+			  if(rootNode){
+				element.link = rootNode.appendChild( $.createNode(element) );
+			  } else {
+				element.link = app.rootNode.appendChild( $.createNode(element) );
+			  }
+			  if(element.data){
+				app.render(element.data, element.link);
+			  }
+			});
+		  }
+		};
+
+		var $ = {
+		  getById: function(selector) {
+			return document.getElementById(selector);
+		  },
+		  createEl: function(selector) {
+			return document.createElement(selector);
+		  },
+		  createBtn: function(text, clickFn) {
+			var btn = $.createEl("button");
+			btn.innerText = text;
+			btn.onclick = clickFn;
+			return btn;
+		  },
+		  createInpt: function(el) {
+			var inpt = $.createEl("input");
+			inpt.onclick = app.editInput;
+			inpt.onchange = app.changeInput;
+			inpt.type = "text";
+			inpt.value = el["value"] || "какойто-текст";
+			return inpt;
+		  },
+		  createNode: function(element) {
+			var div = $.createEl("div");
+			var p = $.createEl("p");
+			var addSub = $.createEl("span");
+			var deleteSub = $.createEl("span");
+			addSub.id = 'addSub';
+			deleteSub.id = 'deleteSub';
+			p.innerText = element.data ? "∨" : '';
+			p.onclick = app.toggleSubNode;
+			addSub.onclick = app.addSubNode;
+			deleteSub.onclick = app.deleteSubNode;
+			div.id = element["id"];
+			div.className = element.data ? "item" : "item__sub";
+			div.appendChild( p );
+			div.appendChild( $.createInpt(element) );
+			div.appendChild( addSub );
+			div.appendChild( deleteSub );
+			return div;
+		  }
+		};
+
+		app.init();
+  </script>
+</body>
+</html>
